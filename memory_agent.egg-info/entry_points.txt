@@ -1,0 +1,3 @@
+[console_scripts]
+memory-agent = cli.__main__:run_web
+memory-agent-cli = cli.__main__:main

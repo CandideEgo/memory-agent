@@ -1,0 +1,7 @@
+httpx>=0.24
+duckduckgo_search>=7.0
+fastapi>=0.100
+uvicorn[standard]>=0.23
+pydantic>=2.0
+lxml>=5.0
+primp>=0.7

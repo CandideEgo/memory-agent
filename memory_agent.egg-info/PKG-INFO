@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: memory-agent
+Version: 1.0.0
+Summary: Agent framework with memory
+Requires-Python: >=3.10
+Requires-Dist: httpx>=0.24
+Requires-Dist: duckduckgo_search>=7.0
+Requires-Dist: fastapi>=0.100
+Requires-Dist: uvicorn[standard]>=0.23
+Requires-Dist: pydantic>=2.0
+Requires-Dist: lxml>=5.0
+Requires-Dist: primp>=0.7

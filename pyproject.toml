@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "memory-agent"
+version = "1.0.0"
+description = "Agent framework with memory"
+requires-python = ">=3.10"
+dependencies = [
+    "httpx>=0.24",
+    "duckduckgo_search>=7.0",
+    "fastapi>=0.100",
+    "uvicorn[standard]>=0.23",
+    "pydantic>=2.0",
+    "lxml>=5.0",
+    "primp>=0.7",
+]
+
+[tool.setuptools]
+package-dir = {"memory_agent" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["agent*", "cli*", "config*", "memory*", "skills*", "skills_manager*", "tools*", "web*"]
+
+[project.scripts]
+memory-agent = "cli.__main__:run_web"
+memory-agent-cli = "cli.__main__:main"
