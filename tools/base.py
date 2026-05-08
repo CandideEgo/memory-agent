@@ -2,9 +2,10 @@
 工具基类 - 所有工具必须继承此基类
 """
 
+import asyncio
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Coroutine
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ class BaseTool(ABC):
         """
         try:
             logger.debug(f"执行工具 {self.name}，参数: {kwargs}")
-            result = await self.execute(**kwargs)
+            result = await asyncio.to_thread(self.execute, **kwargs)
             logger.debug(f"工具 {self.name} 执行完成")
             return result
         except Exception as e:

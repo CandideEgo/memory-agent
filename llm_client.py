@@ -74,6 +74,8 @@ async def create_message_with_retry(**kwargs) -> dict:
                 )
                 await asyncio.sleep(delay)
                 continue
-            raise
+            raise RuntimeError(
+                f"API error {e.status_code}: {e}"
+            ) from e
 
     raise RuntimeError(f"LLM call failed: {last_error}")

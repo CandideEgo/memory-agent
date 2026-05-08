@@ -170,7 +170,9 @@ class AgentREPL:
 
         # 1. Validate environment
         print(f"{Style.dim('Initializing...')}")
-        validate_env()
+        warnings = validate_env()
+        for w in warnings:
+            print(f"  {Style.yellow('⚠')} {w}")
         logger.info("Configuration loaded")
 
         # 2. Connect to translate-mcp (web/file/image tools)

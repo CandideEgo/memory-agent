@@ -56,6 +56,13 @@ class ShellTool(BaseTool):
         self.whitelist = self.config.shell_whitelist
         self.default_timeout = self.config.shell_timeout
 
+    # Dangerous patterns to block for allowed commands
+    _DANGEROUS_PATTERNS = [
+        "rm -rf", "rm -r -f", "rm -f /", "rm /",
+        "python -c", "python -m", "pip install", "pip uninstall",
+        "curl -s", "curl --insecure", "wget -q",
+    ]
+
     def _is_command_allowed(self, command: str) -> tuple[bool, str]:
         """
         检查命令是否在白名单中
@@ -77,6 +84,13 @@ class ShellTool(BaseTool):
 
         if cmd_name not in self.whitelist:
             return False, f"命令不在白名单中: {cmd_name}"
+
+        # Check for dangerous argument patterns
+        lower_cmd = command.lower()
+        for pattern in self._DANGEROUS_PATTERNS:
+            if pattern in lower_cmd:
+                return False, f"危险参数模式: {pattern}"
+
         return True, ""
 
     async def execute(self, command: str, timeout: int = 0, cwd: str = "") -> str:

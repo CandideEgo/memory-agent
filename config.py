@@ -23,7 +23,7 @@ class ToolConfig(BaseSettings):
     shell_whitelist: list[str] = [
         "ls", "cd", "pwd", "echo", "cat", "grep", "find",
         "mkdir", "rm", "cp", "mv", "python", "pip",
-        "ffmpeg", "ffprobe", "yt-dlp",
+        "ffmpeg", "ffprobe",
     ]
     web_search_timeout: int = 10
     max_web_results: int = 5
