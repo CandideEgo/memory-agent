@@ -15,6 +15,7 @@ import asyncio
 import atexit
 import logging
 import os
+import signal
 import sys
 from pathlib import Path
 
@@ -461,10 +462,23 @@ class AgentREPL:
     # Main loop
     # ═══════════════════════════════════════════════════════════
 
+    def _handle_signal(self):
+        """Signal handler — sets shutdown flag so the loop exits cleanly."""
+        logger.info("Received SIGTERM/SIGINT, initiating graceful shutdown...")
+        self.running = False
+
     async def run(self) -> None:
         """Main REPL loop."""
         await self.startup()
         self.running = True
+
+        # Register signal handlers for graceful shutdown (Docker/SIGTERM safe)
+        loop = asyncio.get_event_loop()
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            try:
+                loop.add_signal_handler(sig, self._handle_signal)
+            except NotImplementedError:
+                pass  # Windows does not support SIGTERM
         turn_count = 0
 
         while self.running:

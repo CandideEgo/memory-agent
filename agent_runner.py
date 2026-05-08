@@ -7,7 +7,7 @@ from typing import AsyncIterator
 from anthropic import APIStatusError
 
 from config import settings
-from errors import AgentError, APIError, ToolExecutionError
+from errors import AgentError, APIError
 from logging_config import generate_request_id, request_id_var
 from llm_client import create_message_with_retry
 from memory_store import MemoryStore
@@ -70,7 +70,8 @@ class AgentRunner:
                 return {"type": "tool_result", "tool_use_id": tc.id, "content": result}
             except Exception as e:
                 logger.error(f"Tool {tc.name} failed: {e}")
-                raise ToolExecutionError(f"Tool {tc.name} failed: {e}") from e
+                return {"type": "tool_result", "tool_use_id": tc.id,
+                        "content": f"Error: {e}", "is_error": True}
 
         tool_results = await asyncio.gather(*(_exec_tool(tc) for tc in tool_calls))
         messages.append({"role": "user", "content": tool_results})
@@ -85,7 +86,11 @@ class AgentRunner:
             all_text: list[str] = []
 
             for _ in range(self.MAX_TURNS):
-                text_parts, tool_calls = await self._execute_turn(messages, tool_defs, system_prompt)
+                try:
+                    text_parts, tool_calls = await self._execute_turn(messages, tool_defs, system_prompt)
+                except Exception as e:
+                    logger.error(f"Execute turn failed: {e}")
+                    break
                 if text_parts:
                     all_text.extend(text_parts)
                 if not tool_calls:
@@ -105,7 +110,11 @@ class AgentRunner:
             all_text: list[str] = []
 
             for _ in range(self.MAX_TURNS):
-                text_parts, tool_calls = await self._execute_turn(messages, tool_defs, system_prompt)
+                try:
+                    text_parts, tool_calls = await self._execute_turn(messages, tool_defs, system_prompt)
+                except Exception as e:
+                    logger.error(f"Execute turn failed: {e}")
+                    break
                 if text_parts:
                     joined = "".join(text_parts)
                     all_text.append(joined)

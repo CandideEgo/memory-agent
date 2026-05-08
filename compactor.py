@@ -62,9 +62,9 @@ def _extract_tag(text: str, tag: str) -> Optional[str]:
     end = text.find(end_tag, start)
     if end == -1:
         return None
-    # Basic validation: ensure no CDATA or nested same-tag inside
+    # Basic validation: ensure no nested tags or CDATA inside
     content = text[start:end]
-    if "<" in content or ">" not in content:
+    if "<" in content or ">" in content:
         # Likely malformed (contains nested tags or is actually CDATA)
         return None
     return content.strip()

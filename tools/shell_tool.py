@@ -63,7 +63,10 @@ class ShellTool(BaseTool):
         "curl -s", "curl --insecure", "wget -q",
     ]
 
-    def _is_command_allowed(self, command: str) -> tuple[bool, str]:
+    # Shell metacharacters to strip as additional safeguard
+    _SHELL_METACHARS = set(";|&$`(){}<>!#~")
+
+    def _is_command_allowed(self, command: str) -> tuple[bool, str, list[str]]:
         """
         检查命令是否在白名单中
 
@@ -71,27 +74,32 @@ class ShellTool(BaseTool):
             command: 原始命令
 
         Returns:
-            (是否允许, 原因)
+            (是否允许, 原因, 解析后的命令部分)
         """
         # 解析命令获取第一个可执行文件名
         try:
             parts = shlex.split(command)
             if not parts:
-                return False, "空命令"
+                return False, "空命令", []
             cmd_name = parts[0]
         except ValueError:
-            return False, "命令解析失败"
+            return False, "命令解析失败", []
 
         if cmd_name not in self.whitelist:
-            return False, f"命令不在白名单中: {cmd_name}"
+            return False, f"命令不在白名单中: {cmd_name}", []
 
         # Check for dangerous argument patterns
         lower_cmd = command.lower()
         for pattern in self._DANGEROUS_PATTERNS:
             if pattern in lower_cmd:
-                return False, f"危险参数模式: {pattern}"
+                return False, f"危险参数模式: {pattern}", []
 
-        return True, ""
+        # Strip shell metacharacters as additional safeguard
+        for p in parts:
+            if any(c in self._SHELL_METACHARS for c in p):
+                return False, f"检测到 Shell 特殊字符: {p}", []
+
+        return True, "", parts
 
     async def execute(self, command: str, timeout: int = 0, cwd: str = "") -> str:
         """
@@ -106,7 +114,7 @@ class ShellTool(BaseTool):
             命令输出（stdout/stderr）或错误信息
         """
         # 白名单检查
-        allowed, reason = self._is_command_allowed(command)
+        allowed, reason, parts = self._is_command_allowed(command)
         if not allowed:
             return f"错误: {reason}。允许的命令: {', '.join(self.whitelist)}"
 
@@ -117,8 +125,8 @@ class ShellTool(BaseTool):
         try:
             logger.debug(f"执行命令: {command} (超时: {timeout}s)")
 
-            process = await asyncio.create_subprocess_shell(
-                command,
+            process = await asyncio.create_subprocess_exec(
+                *parts,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=cwd if cwd else None

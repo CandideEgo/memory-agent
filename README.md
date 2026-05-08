@@ -1,68 +1,116 @@
-# Agent Framework
+# memory-agent
 
-生产级模块化 AI Agent 框架，基于 ReAct/Tool-use 模式。
+Modular AI Agent framework with ReAct (Reasoning + Acting) pattern, persistent memory, dynamic skill system, and MCP (Model Context Protocol) integration.
 
-## 核心功能
+## Quick Start
 
-- **ReAct 循环**: 基于 LLM 的推理-行动循环
-- **工具系统**: 统一的工具接口，支持文件读写、Shell 命令、网页搜索
-- **记忆持久化**: JSON 文件存储对话历史和状态
-- **Skills 动态加载**: 按需加载技能指令
-
-## 快速开始
-
-### 1. 安装依赖
+### 1. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. 设置环境变量
+Or install as a package:
 
 ```bash
-export OPENAI_API_KEY='your-api-key'
+pip install .
 ```
 
-### 3. 运行
+### 2. Configure environment
+
+Copy `.env.example` to `.env` and fill in your values:
 
 ```bash
-# 交互模式
-python -m agent_framework.main
-
-# 单任务模式
-python -m agent_framework.main --task "你好"
-
-# 演示模式
-python -m agent_framework.main --demo
+cp .env.example .env
 ```
 
-## 架构
+Required environment variables:
+- `ANTHROPIC_AUTH_TOKEN` - API key for LLM calls (MiniMax Claude-compatible)
+- `ANTHROPIC_BASE_URL` - (optional) defaults to `https://api.minimaxi.com/anthropic`
+- `ANTHROPIC_MODEL` - (optional) defaults to `MiniMax-M2.7`
+
+Optional MCP and Obsidian variables:
+- `TRANSLATE_MCP_COMMAND` / `TRANSLATE_MCP_ARGS` / `TRANSLATE_MCP_PATH` - MCP bridge for video transcription
+- `OBSIDIAN_VAULT_PATH` - Obsidian vault path for note persistence
+
+### 3. Run
+
+```bash
+# Interactive REPL (default)
+python main.py
+
+# One-shot task
+python main.py --cli --task "What is Python?"
+
+# Web UI
+python main.py --web
+
+# MCP server mode (for Claude Code / Claude Desktop)
+python main.py --mcp
+
+# Diagnostics
+python main.py --doctor
+```
+
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         main.py                              │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────┐
-│                         Agent                               │
-│  - LLM Client (OpenAI compatible)                           │
-│  - ToolRunner (工具执行循环)                                 │
-│  - Memory (记忆持久化)                                       │
-│  - SkillManager (技能动态加载)                               │
-└─────────────────────────────────────────────────────────────┘
+main.py                     # Entry point (REPL, web, MCP, CLI dispatch)
+├── agent_runner.py         # Multi-turn tool-calling loop with Anthropic SDK
+├── agent_loop.py           # Orchestration layer (session management, compaction)
+├── config.py               # Pydantic settings — .env, LLM, tools, paths
+├── context_builder.py      # Jinja2 system prompt assembly
+├── errors.py               # Structured exception hierarchy
+├── llm_client.py           # Anthropic SDK client with retry logic
+├── logging_config.py       # Structured logging setup
+├── memory_store.py         # Three-layer memory (working, episodic, long-term)
+├── compactor.py            # LLM-driven history compression
+├── skills_manager.py       # Dynamic skill loading from skills/ directory
+├── repl.py                 # Interactive REPL with session management
+├── mcp_server.py           # MCP server exposing process_media tool
+├── web.py                  # FastAPI web server with WebSocket streaming
+├── tools/                  # Tool implementations
+│   ├── base.py             # BaseTool abstract class
+│   ├── shell_tool.py       # Shell command execution (whitelist + exec)
+│   ├── web_tool.py         # Web search via DuckDuckGo
+│   ├── mcp_tool.py         # MCP client tool
+│   ├── mcp_bridge.py       # MCP stdio bridge to external servers
+│   ├── obsidian_tool.py    # Obsidian vault integration
+│   ├── registry.py         # Singleton tool registry
+│   └── ...
+└── skills/                 # Dynamic skill definitions (SKILL.md files)
 ```
 
-## 添加新工具
+## Key Design Patterns
 
-继承 `BaseTool`:
+**Tool System:** All tools inherit from `BaseTool` and implement `execute()`. Tools are registered in `ToolRegistry` and exposed to the LLM via Anthropic tool schemas.
+
+**Agent Loop:** `AgentRunner.run()` implements the ReAct loop:
+1. Build system prompt with skills + memory summary + tool schemas
+2. Call LLM with user task
+3. Parse response for tool calls or final answer
+4. Execute tools in parallel, collect results
+5. Loop until final answer or max iterations reached
+
+**Memory:** Three-layer memory system in `MemoryStore`:
+- Working memory (conversation turns, auto-compacted)
+- Episodic memory (daily summaries in `memory/YYYY-MM-DD.md`)
+- Long-term memory (`memory/MEMORY.md`)
+
+**Skills:** Loaded from `skills/` directory. Each skill is a directory containing `SKILL.md` with instructions injected into the system prompt.
+
+**MCP Integration:** `mcp_bridge.py` connects to external MCP servers via stdio transport, proxying their tools for agent use.
+
+## Adding a New Tool
+
+Inherit from `BaseTool`:
 
 ```python
 from tools.base import BaseTool
 
 class MyTool(BaseTool):
     name = "my_tool"
-    description = "我的工具"
+    description = "My custom tool"
     parameters = {
         "type": "object",
         "properties": {...},
@@ -70,20 +118,19 @@ class MyTool(BaseTool):
     }
 
     async def execute(self, **kwargs) -> str:
-        # 实现逻辑
-        return "结果"
+        return "result"
 ```
 
-## 添加新 Skill
+Register it via `get_registry().register(MyTool())`.
 
-在 `skills/` 目录下创建目录和 `SKILL.md`:
+## Adding a New Skill
+
+Create a directory under `skills/` with a `SKILL.md` file:
 
 ```markdown
-# Skill Name
-
-## Description
-简短描述
-
-## Instructions
-具体指令...
+---
+name: my-skill
+description: A short description
+---
+Detailed instructions for the LLM...
 ```

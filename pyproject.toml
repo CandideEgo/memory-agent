@@ -9,21 +9,35 @@ description = "Agent framework with memory"
 requires-python = ">=3.10"
 dependencies = [
     "httpx>=0.24",
+    "anthropic>=0.97",
     "duckduckgo_search>=7.0",
     "fastapi>=0.100",
     "uvicorn[standard]>=0.23",
-    "pydantic>=2.0",
+    "pydantic>=2.6",
+    "pydantic-settings>=2.1",
+    "python-dotenv>=1.0",
+    "mcp>=1.0",
+    "jinja2>=3.1",
+    "pyyaml>=6.0",
+    "filelock>=3.13",
     "lxml>=5.0",
     "primp>=0.7",
 ]
 
-[tool.setuptools]
-package-dir = {"memory_agent" = "."}
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+]
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["agent*", "cli*", "config*", "memory*", "skills*", "skills_manager*", "tools*", "web*"]
+[tool.setuptools]
+py-modules = [
+    "config", "errors", "main", "memory_store",
+    "agent_runner", "agent_loop", "compactor", "context_builder",
+    "llm_client", "logging_config", "repl", "mcp_server",
+    "skills_manager", "video_analyzer", "web",
+]
+packages = ["tools", "cli"]
 
 [project.scripts]
-memory-agent = "cli.__main__:run_web"
-memory-agent-cli = "cli.__main__:main"
+memory-agent = "main:main"

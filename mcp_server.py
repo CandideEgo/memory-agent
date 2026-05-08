@@ -9,6 +9,7 @@ Usable by Claude Code, Claude Desktop, or any MCP client.
 """
 import asyncio
 import logging
+import signal
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
@@ -163,14 +164,33 @@ async def main() -> None:
             "The agent can process media but cannot save to Obsidian."
         )
 
+    # Register signal handlers for graceful shutdown
+    shutdown_event = asyncio.Event()
+    loop = asyncio.get_event_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            loop.add_signal_handler(sig, shutdown_event.set)
+        except NotImplementedError:
+            pass
+
     init_options = server.create_initialization_options()
 
     async with stdio_server() as (read_stream, write_stream):
-        await server.run(
-            read_stream=read_stream,
-            write_stream=write_stream,
-            initialization_options=init_options,
+        # Run server until shutdown signal
+        server_task = asyncio.create_task(
+            server.run(
+                read_stream=read_stream,
+                write_stream=write_stream,
+                initialization_options=init_options,
+            )
         )
+        await shutdown_event.wait()
+        logger.info("MCP server shutting down...")
+        server_task.cancel()
+        try:
+            await server_task
+        except asyncio.CancelledError:
+            pass
 
 
 if __name__ == "__main__":

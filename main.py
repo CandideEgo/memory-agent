@@ -12,6 +12,12 @@ import sys
 import asyncio
 from pathlib import Path
 
+def main():
+    """Synchronous entry point for console_scripts."""
+    from repl import main as repl_main
+    asyncio.run(repl_main())
+
+
 if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).parent.absolute()))
     if len(sys.argv) > 1:

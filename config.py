@@ -16,13 +16,27 @@ _PROJECT_ROOT = Path(__file__).resolve().parent
 _ENV_PATH = _PROJECT_ROOT / ".env"
 
 
+class LLMConfig(BaseSettings):
+    """LLM client configuration."""
+    api_key: str = ""
+    base_url: str = "https://api.minimaxi.com/anthropic"
+    model: str = "MiniMax-M2.7"
+
+
+class AgentConfig(BaseSettings):
+    """Agent-level configuration."""
+    memory_dir: str = "./memory"
+    skills_dir: str = "skills"
+    templates_dir: str = "templates"
+
+
 class ToolConfig(BaseSettings):
     """Tool-specific configuration."""
     model_config = SettingsConfigDict(env_prefix="TOOL_", extra="ignore")
     shell_timeout: int = 30
     shell_whitelist: list[str] = [
         "ls", "cd", "pwd", "echo", "cat", "grep", "find",
-        "mkdir", "rm", "cp", "mv", "python", "pip",
+        "mkdir", "rm", "cp", "mv",
         "ffmpeg", "ffprobe",
     ]
     web_search_timeout: int = 10
