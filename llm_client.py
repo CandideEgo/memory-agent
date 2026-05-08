@@ -24,7 +24,7 @@ def get_client() -> AsyncAnthropic:
     global _client
     if _client is None:
         _client = AsyncAnthropic(
-            api_key=settings.anthropic_api_key,
+            api_key=settings.anthropic_auth_token,
             base_url=settings.anthropic_base_url,
             timeout=300.0,
             max_retries=2,

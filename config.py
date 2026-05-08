@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     )
 
     # ── LLM ──────────────────────────────────────────────────
-    anthropic_api_key: str = ""
+    anthropic_auth_token: str = ""
     anthropic_base_url: str = "https://api.minimaxi.com/anthropic"
     anthropic_model: str = "MiniMax-M2.7"
 
@@ -84,7 +84,7 @@ class Settings(BaseSettings):
     @cached_property
     def llm(self) -> LLMConfig:
         return LLMConfig(
-            api_key=self.anthropic_api_key,
+            api_key=self.anthropic_auth_token,
             base_url=self.anthropic_base_url,
             model=self.anthropic_model,
         )
@@ -115,8 +115,8 @@ def validate_env(strict: bool = False) -> list[str]:
     """Validate environment and return warnings."""
     warnings: list[str] = []
 
-    if not settings.anthropic_api_key:
-        msg = "ANTHROPIC_API_KEY is not set. LLM calls will fail."
+    if not settings.anthropic_auth_token:
+        msg = "ANTHROPIC_AUTH_TOKEN is not set. LLM calls will fail."
         if strict:
             raise ConfigError(msg)
         warnings.append(msg)

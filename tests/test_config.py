@@ -29,25 +29,25 @@ class TestToolConfig:
     def test_missing_token_strict(self):
         """validate_env(strict=True) raises ConfigError when token is missing."""
         from config import settings
-        original = settings.anthropic_api_key
+        original = settings.anthropic_auth_token
         try:
-            settings.anthropic_api_key = ""
+            settings.anthropic_auth_token = ""
             with __import__("pytest").raises(ConfigError):
                 validate_env(strict=True)
         finally:
-            settings.anthropic_api_key = original
+            settings.anthropic_auth_token = original
 
     def test_strict_mode_warnings(self):
         """validate_env(strict=False) returns list of warnings."""
         from config import settings
-        original = settings.anthropic_api_key
+        original = settings.anthropic_auth_token
         try:
-            settings.anthropic_api_key = ""
+            settings.anthropic_auth_token = ""
             warnings = validate_env(strict=False)
             assert isinstance(warnings, list)
-            assert any("ANTHROPIC_API_KEY" in w for w in warnings)
+            assert any("ANTHROPIC_AUTH_TOKEN" in w for w in warnings)
         finally:
-            settings.anthropic_api_key = original
+            settings.anthropic_auth_token = original
 
     def test_defaults(self):
         """ToolConfig has sensible defaults."""

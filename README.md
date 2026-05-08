@@ -25,9 +25,9 @@ cp .env.example .env
 ```
 
 Required environment variables:
-- `ANTHROPIC_API_KEY` - API key for LLM calls (MiniMax Claude-compatible)
+- `ANTHROPIC_AUTH_TOKEN` - API key for LLM calls (MiniMax Claude-compatible)
 - `ANTHROPIC_BASE_URL` - (optional) defaults to `https://api.minimaxi.com/anthropic`
-- `ANTHROPIC_MODEL` - (optional) defaults to `MiniMax-M2`
+- `ANTHROPIC_MODEL` - (optional) defaults to `MiniMax-M2.7`
 
 Optional MCP and Obsidian variables:
 - `TRANSLATE_MCP_COMMAND` / `TRANSLATE_MCP_ARGS` / `TRANSLATE_MCP_PATH` - MCP bridge for video transcription
