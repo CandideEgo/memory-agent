@@ -16,12 +16,16 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-# 尝试导入 duckduckgo_search
+# 尝试导入 ddgs (新版) 或 duckduckgo_search (旧版)
 try:
-    from duckduckgo_search import DDGS
+    from ddgs import DDGS
     HAS_DUCKDKGO = True
 except ImportError:
-    HAS_DUCKDKGO = False
+    try:
+        from duckduckgo_search import DDGS
+        HAS_DUCKDKGO = True
+    except ImportError:
+        HAS_DUCKDKGO = False
 
 
 class WebSearchTool(BaseTool):
