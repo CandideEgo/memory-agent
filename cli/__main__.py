@@ -87,10 +87,10 @@ async def run_demo() -> None:
 
 
 def _check_api_key() -> str:
-    api_key = os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not api_key:
-        print("Warning: ANTHROPIC_AUTH_TOKEN is not set")
-        print("Set it via: export ANTHROPIC_AUTH_TOKEN='your-api-key'")
+        print("Warning: ANTHROPIC_API_KEY is not set")
+        print("Set it via: export ANTHROPIC_API_KEY='your-api-key'")
         print()
     return api_key
 

@@ -33,8 +33,8 @@ if __name__ == "__main__":
             # Token check
             try:
                 from config import settings
-                if not settings.anthropic_auth_token:
-                    errors.append("ANTHROPIC_AUTH_TOKEN is not set")
+                if not settings.anthropic_api_key:
+                    errors.append("ANTHROPIC_API_KEY is not set")
             except ConfigError as e:
                 errors.append(str(e))
 
