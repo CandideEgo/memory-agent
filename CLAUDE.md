@@ -94,7 +94,7 @@ python -c "import main; print('OK')"
 ```
 
 **Required environment variables:**
-- `ANTHROPIC_AUTH_TOKEN` — API key for LLM calls
+- `ANTHROPIC_API_KEY` — API key for LLM calls (MiniMax Claude-compatible)
 - `ANTHROPIC_BASE_URL` — (optional) defaults to `https://api.minimaxi.com/anthropic`
 - `ANTHROPIC_MODEL` — (optional) defaults to `MiniMax-M2.7`
 
