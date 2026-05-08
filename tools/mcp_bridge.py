@@ -1,6 +1,7 @@
 """MCP client bridge to translate-mcp conversion engine."""
 import asyncio
 import logging
+import os
 from contextlib import AsyncExitStack
 
 from mcp import ClientSession, StdioServerParameters
@@ -54,6 +55,7 @@ class MCPBridge:
             params = StdioServerParameters(
                 command=self.command,
                 args=self.args,
+                env={**os.environ, "PYTHONIOENCODING": "utf-8"},
             )
             transport = await self._exit_stack.enter_async_context(
                 stdio_client(params)

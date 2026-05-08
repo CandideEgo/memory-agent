@@ -164,6 +164,9 @@ class AgentREPL:
         from tools.obsidian_tool import ObsidianWriteTool
         from tools.mcp_bridge import get_bridge, MCPProxyTool
         from tools.direct_video_tool import DirectVideoTool
+        from tools.shell_tool import ShellTool
+        from tools.web_tool import WebSearchTool
+        from tools.file_tool import FileReadTool, FileWriteTool
         from skills_manager import load_all_skills
         from agent_loop import AgentLoop
 
@@ -187,6 +190,10 @@ class AgentREPL:
         registry.clear()
         registry.register(ObsidianWriteTool())
         registry.register(DirectVideoTool())
+        registry.register(ShellTool())
+        registry.register(WebSearchTool())
+        registry.register(FileReadTool())
+        registry.register(FileWriteTool())
 
         mcp_tools = await self.bridge.list_tools()
         for td in mcp_tools:
