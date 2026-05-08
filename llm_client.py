@@ -7,6 +7,7 @@ from typing import Optional
 from anthropic import AsyncAnthropic, APIStatusError, APIConnectionError, RateLimitError
 
 from config import settings
+from errors import APIError, LLMRateLimitError
 
 logger = logging.getLogger("memory-agent.llm")
 
@@ -49,7 +50,7 @@ async def create_message_with_retry(**kwargs) -> dict:
                 )
                 await asyncio.sleep(delay)
             else:
-                raise RuntimeError(
+                raise LLMRateLimitError(
                     f"Rate limited after {MAX_RETRIES + 1} attempts."
                 ) from e
         except APIConnectionError as e:
@@ -62,7 +63,7 @@ async def create_message_with_retry(**kwargs) -> dict:
                 )
                 await asyncio.sleep(delay)
             else:
-                raise RuntimeError(
+                raise APIError(
                     f"Cannot reach LLM API after {MAX_RETRIES + 1} attempts."
                 ) from e
         except APIStatusError as e:
@@ -74,8 +75,8 @@ async def create_message_with_retry(**kwargs) -> dict:
                 )
                 await asyncio.sleep(delay)
                 continue
-            raise RuntimeError(
-                f"API error {e.status_code}: {e}"
-            ) from e
+            raise APIError(
+                    f"API error {e.status_code}: {e}"
+                ) from e
 
-    raise RuntimeError(f"LLM call failed: {last_error}")
+    raise APIError(f"LLM call failed: {last_error}")

@@ -45,18 +45,40 @@ class ObsidianWriteTool(BaseTool):
     ) -> str:
         from config import settings
 
-        vault = Path(settings.obsidian_vault_path)
+        vault = Path(settings.obsidian_vault_path).resolve()
         if not vault.exists():
             raise RuntimeError(
                 f"Obsidian vault not found: {vault}. "
                 "Set OBSIDIAN_VAULT_PATH in .env to your vault root directory."
             )
 
-        target_dir = vault / folder if folder else vault
-        target_dir.mkdir(parents=True, exist_ok=True)
+        # Sanitize folder — reject null bytes, control chars, path traversal
+        if folder:
+            folder = folder.translate({0: None, 1: None, 2: None, 3: None, 4: None,
+                                      5: None, 6: None, 7: None, 8: None})
+            if ".." in folder:
+                raise ValueError("Path traversal not allowed in folder")
+            folder = folder.strip()
 
-        safe_title = title.replace("/", "-").replace("\\", "-").replace(":", " -")
-        filepath = target_dir / f"{safe_title}.md"
+        target_dir = vault / folder if folder else vault
+        try:
+            target_dir = target_dir.resolve()
+        except (OSError, ValueError):
+            raise ValueError(f"Invalid folder path: {folder}")
+        if not str(target_dir).startswith(str(vault)):
+            raise ValueError("Resolved path is outside vault")
+
+        # Sanitize title — remove path separators, null bytes, control chars
+        clean_title = title.translate({0: None, 1: None, 2: None, 3: None,
+                                       4: None, 5: None, 6: None, 7: None, 8: None})
+        clean_title = clean_title.replace("/", "-").replace("\\", "-").replace(":", " -").strip()
+        if not clean_title:
+            raise ValueError("Title cannot be empty after sanitization")
+        if ".." in clean_title:
+            raise ValueError("Path traversal not allowed in title")
+
+        filepath = target_dir / f"{clean_title}.md"
+        target_dir.mkdir(parents=True, exist_ok=True)
 
         today = datetime.now().strftime("%Y-%m-%d")
         tag_list = [t.strip() for t in tags.split(",") if t.strip()]

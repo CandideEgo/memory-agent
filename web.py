@@ -174,6 +174,19 @@ async def get_skills():
     return {"skills": skills}
 
 
+@app.get("/health")
+async def health():
+    """Health check endpoint."""
+    mcp_connected = False
+    try:
+        from tools.mcp_bridge import get_bridge
+        bridge = get_bridge()
+        mcp_connected = bridge.is_connected()
+    except Exception:
+        mcp_connected = False
+    return {"status": "ok", "mcp_connected": mcp_connected}
+
+
 if __name__ == "__main__":
     import uvicorn
     logging.basicConfig(

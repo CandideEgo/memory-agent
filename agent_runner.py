@@ -7,6 +7,8 @@ from typing import AsyncIterator
 from anthropic import APIStatusError
 
 from config import settings
+from errors import AgentError, APIError, ToolExecutionError
+from logging_config import generate_request_id, request_id_var
 from llm_client import create_message_with_retry
 from memory_store import MemoryStore
 from tools.registry import get_registry
@@ -68,18 +70,20 @@ class AgentRunner:
                 return {"type": "tool_result", "tool_use_id": tc.id, "content": result}
             except Exception as e:
                 logger.error(f"Tool {tc.name} failed: {e}")
-                return {"type": "tool_result", "tool_use_id": tc.id, "content": f"Error: {e}"}
+                raise ToolExecutionError(f"Tool {tc.name} failed: {e}") from e
 
         tool_results = await asyncio.gather(*(_exec_tool(tc) for tc in tool_calls))
         messages.append({"role": "user", "content": tool_results})
         return text_parts, tool_calls
 
     async def run(self, memory: MemoryStore, system_prompt: str = "") -> str:
-        tool_defs = self.registry.get_definitions()
-        messages = memory.to_anthropic_messages()
-        all_text: list[str] = []
-
+        req_id = generate_request_id()
+        token = request_id_var.set(req_id)
         try:
+            tool_defs = self.registry.get_definitions()
+            messages = memory.to_anthropic_messages()
+            all_text: list[str] = []
+
             for _ in range(self.MAX_TURNS):
                 text_parts, tool_calls = await self._execute_turn(messages, tool_defs, system_prompt)
                 if text_parts:
@@ -89,23 +93,17 @@ class AgentRunner:
                     memory.add("assistant", final)
                     return final
             return "".join(all_text) or "Maximum turns reached."
-        except APIStatusError as e:
-            logger.error(f"Agent run failed (API status {e.status_code}): {e}")
-            msg = f"Error: API request failed with status {e.status_code}"
-            memory.add("assistant", msg)
-            return msg
-        except Exception as e:
-            logger.error(f"Agent run failed: {e}")
-            msg = f"Error: {e}"
-            memory.add("assistant", msg)
-            return msg
+        finally:
+            request_id_var.reset(token)
 
     async def stream(self, memory: MemoryStore, system_prompt: str = "") -> AsyncIterator[str]:
-        tool_defs = self.registry.get_definitions()
-        messages = memory.to_anthropic_messages()
-        all_text: list[str] = []
-
+        req_id = generate_request_id()
+        token = request_id_var.set(req_id)
         try:
+            tool_defs = self.registry.get_definitions()
+            messages = memory.to_anthropic_messages()
+            all_text: list[str] = []
+
             for _ in range(self.MAX_TURNS):
                 text_parts, tool_calls = await self._execute_turn(messages, tool_defs, system_prompt)
                 if text_parts:
@@ -115,9 +113,5 @@ class AgentRunner:
                 if not tool_calls:
                     memory.add("assistant", "".join(all_text))
                     return
-        except APIStatusError as e:
-            logger.error(f"Stream failed (API status {e.status_code}): {e}")
-            yield f"Error: API request failed with status {e.status_code}"
-        except Exception as e:
-            logger.error(f"Stream failed: {e}")
-            yield f"Error: {e}"
+        finally:
+            request_id_var.reset(token)

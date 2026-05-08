@@ -4,9 +4,24 @@ import json
 import logging
 import logging.handlers
 import sys
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+
+# Request-scoped correlation ID
+request_id_var: ContextVar[Optional[str]] = ContextVar("request_id", default=None)
+
+
+def get_request_id() -> Optional[str]:
+    """Return the current request ID, or None if not set."""
+    return request_id_var.get()
+
+
+def generate_request_id() -> str:
+    """Generate a short UUID for a new request."""
+    import uuid
+    return uuid.uuid4().hex[:12]
 
 
 class JsonFormatter(logging.Formatter):
@@ -21,6 +36,9 @@ class JsonFormatter(logging.Formatter):
         }
         if record.exc_info and record.exc_info[1]:
             entry["error"] = str(record.exc_info[1])
+        req_id = request_id_var.get()
+        if req_id:
+            entry["request_id"] = req_id
         return json.dumps(entry, ensure_ascii=False)
 
 

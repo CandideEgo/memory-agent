@@ -127,6 +127,10 @@ class MCPBridge:
             self._session = None
             self._exit_stack = None
 
+    def is_connected(self) -> bool:
+        """Return True if the MCP session is active."""
+        return self._session is not None
+
 
 _bridge: MCPBridge | None = None
 
