@@ -1,11 +1,14 @@
 """LLM-driven history compression for memory management."""
 
+import threading
 from datetime import datetime
 from typing import Optional
 
 from config import settings
 from memory_store import MemoryStore
 from context_builder import ContextBuilder
+
+_compact_lock = threading.Lock()
 
 
 def should_compact(memory: MemoryStore) -> bool:
@@ -14,7 +17,7 @@ def should_compact(memory: MemoryStore) -> bool:
 
 async def compact(memory: MemoryStore, context_builder: Optional[ContextBuilder] = None) -> None:
     """Compact old history using LLM to extract key information."""
-    if context_builder is None:
+    with _compact_lock:
         context_builder = ContextBuilder()
 
     history = memory.get_history_for_compaction()
@@ -59,4 +62,9 @@ def _extract_tag(text: str, tag: str) -> Optional[str]:
     end = text.find(end_tag, start)
     if end == -1:
         return None
-    return text[start:end].strip()
+    # Basic validation: ensure no CDATA or nested same-tag inside
+    content = text[start:end]
+    if "<" in content or ">" not in content:
+        # Likely malformed (contains nested tags or is actually CDATA)
+        return None
+    return content.strip()

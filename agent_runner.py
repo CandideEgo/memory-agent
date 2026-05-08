@@ -4,6 +4,8 @@ import asyncio
 import logging
 from typing import AsyncIterator
 
+from anthropic import APIStatusError
+
 from config import settings
 from llm_client import create_message_with_retry
 from memory_store import MemoryStore
@@ -52,6 +54,10 @@ class AgentRunner:
         if not tool_calls:
             return text_parts, tool_calls
 
+        # response.content is a list of ContentBlock objects (text or tool_use blocks).
+        # tool_results is a list of dicts with type="tool_result". These are two different
+        # content types stored in messages - the former is raw LLM output, the latter is
+        # tool response dicts formatted for the next LLM turn.
         messages.append({"role": "assistant", "content": response.content})
 
         async def _exec_tool(tc):
@@ -83,7 +89,12 @@ class AgentRunner:
                     memory.add("assistant", final)
                     return final
             return "".join(all_text) or "Maximum turns reached."
-        except RuntimeError as e:
+        except APIStatusError as e:
+            logger.error(f"Agent run failed (API status {e.status_code}): {e}")
+            msg = f"Error: API request failed with status {e.status_code}"
+            memory.add("assistant", msg)
+            return msg
+        except Exception as e:
             logger.error(f"Agent run failed: {e}")
             msg = f"Error: {e}"
             memory.add("assistant", msg)
@@ -104,6 +115,9 @@ class AgentRunner:
                 if not tool_calls:
                     memory.add("assistant", "".join(all_text))
                     return
-        except RuntimeError as e:
+        except APIStatusError as e:
+            logger.error(f"Stream failed (API status {e.status_code}): {e}")
+            yield f"Error: API request failed with status {e.status_code}"
+        except Exception as e:
             logger.error(f"Stream failed: {e}")
             yield f"Error: {e}"

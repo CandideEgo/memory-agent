@@ -106,13 +106,19 @@ class MemoryStore:
     def save_session(self, session_id: str) -> Path:
         _SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
         path = _SESSIONS_DIR / f"{session_id}.json"
+        messages = []
+        for m in self.working:
+            role = m.get("role", "user")
+            content = m.get("content", "")
+            # Preserve list content (tool blocks) as JSON; stringify other content
+            if isinstance(content, list):
+                messages.append({"role": role, "content": json.dumps(content, ensure_ascii=False)})
+            else:
+                messages.append({"role": role, "content": str(content)})
         data = {
             "session_id": session_id,
             "saved_at": datetime.now().isoformat(),
-            "messages": [
-                {"role": m.get("role", "user"), "content": str(m.get("content", ""))}
-                for m in self.working
-            ],
+            "messages": messages,
         }
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         return path
@@ -122,7 +128,19 @@ class MemoryStore:
         if not path.exists():
             return 0
         data = json.loads(path.read_text(encoding="utf-8"))
-        self.working = data.get("messages", [])
+        loaded = []
+        for m in data.get("messages", []):
+            content = m.get("content", "")
+            # Parse list content back to proper structure; leave strings as-is
+            if isinstance(content, str):
+                try:
+                    parsed = json.loads(content)
+                    if isinstance(parsed, list):
+                        content = parsed
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            loaded.append({"role": m.get("role", "user"), "content": content})
+        self.working = loaded
         return len(self.working)
 
     @staticmethod
