@@ -76,50 +76,52 @@ class SkillManager:
 
     def _parse_skill_md(self, content: str, fallback_name: str) -> tuple[str, str, str]:
         """
-        解析 SKILL.md 格式
-
-        Args:
-            content: 文件内容
-            fallback_name: 默认名称
-
-        Returns:
-            (技能名, 描述, 指令)
+        Parse SKILL.md — supports YAML frontmatter and markdown heading formats.
         """
         lines = content.split("\n")
-
-        # 解析名称 (第一个 # 标题)
         name = fallback_name
         description = ""
+        instructions = ""
+
+        # Try YAML frontmatter first
+        if content.startswith("---"):
+            end = content.find("---", 3)
+            if end != -1:
+                frontmatter = content[3:end].strip()
+                body = content[end + 3:].strip()
+                for line in frontmatter.split("\n"):
+                    if ":" in line:
+                        key, val = line.split(":", 1)
+                        key, val = key.strip(), val.strip()
+                        if key == "name":
+                            name = val
+                        elif key == "description":
+                            description = val
+                        elif key == "trigger" and not description:
+                            description = val
+                instructions = body
+                return name, description, instructions
+
+        # Fall back to heading-based format
         instructions_lines = []
         in_instructions = False
 
         for i, line in enumerate(lines):
             stripped = line.strip()
 
-            # 第一个 # 标题是技能名称
             if i == 0 and stripped.startswith("# "):
                 name = stripped[2:].strip()
-
-            # Description 部分
-            elif stripped.lower() == "## description" or stripped.lower() == "## description":
-                # 收集下一行或后续内容作为描述
-                if i + 1 < len(lines):
-                    next_line = lines[i + 1].strip()
-                    if next_line and not next_line.startswith("#"):
-                        description = next_line
-                        continue
-                    desc_lines = []
-                    for j in range(i + 1, len(lines)):
-                        l = lines[j].strip()
-                        if l.startswith("## ") or l.startswith("# "):
-                            break
-                        if l:
-                            desc_lines.append(l)
-                    description = " ".join(desc_lines)
-                    if description:
-                        continue
-
-            # Instructions 部分
+            elif stripped.lower() in ("## description", "## 描述"):
+                desc_lines = []
+                for j in range(i + 1, len(lines)):
+                    l = lines[j].strip()
+                    if l.startswith("## ") or l.startswith("# "):
+                        break
+                    if l:
+                        desc_lines.append(l)
+                description = " ".join(desc_lines)
+                if description:
+                    continue
             elif stripped.lower() == "## instructions":
                 in_instructions = True
                 continue
@@ -130,7 +132,7 @@ class SkillManager:
 
         instructions = "\n".join(instructions_lines).strip()
         if not instructions:
-            instructions = content  # 如果没有找到 instructions，使用全部内容
+            instructions = content
 
         return name, description, instructions
 
@@ -198,20 +200,23 @@ class SkillManager:
         return list(self.skills.keys())
 
     def get_skill_info(self, skill_name: str) -> dict[str, str] | None:
-        """
-        获取技能信息
-
-        Args:
-            skill_name: 技能名称
-
-        Returns:
-            技能信息字典或 None
-        """
         skill = self.skills.get(skill_name)
         if skill:
-            return {
-                "name": skill.name,
-                "description": skill.description,
-                "path": str(skill.path)
-            }
+            return {"name": skill.name, "description": skill.description, "path": str(skill.path)}
         return None
+
+
+# Module-level singleton and convenience function (for REPL compatibility)
+_skill_manager: SkillManager | None = None
+
+
+def get_manager() -> SkillManager:
+    global _skill_manager
+    if _skill_manager is None:
+        _skill_manager = SkillManager()
+    return _skill_manager
+
+
+def load_all_skills() -> list[Skill]:
+    """Load all skills — convenience for REPL."""
+    return list(get_manager().skills.values())

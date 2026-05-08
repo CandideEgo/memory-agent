@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+
+# Logs
+logs/
+
+# Node
+node_modules/
+
+# Graphify
+graphify-out/
+
+# IDE
+.vscode/
+.idea/
+
+# GitNexus
+.gitnexus/
+
+# Misc
+*.tmp
+*.swp
