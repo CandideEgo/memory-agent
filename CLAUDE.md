@@ -66,74 +66,80 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ## Project Overview
 
-Memory-Agent is a modular AI Agent framework implementing the ReAct (Reasoning + Acting) pattern with tool-use capabilities. It features a dynamic skill system, memory persistence, and MCP (Model Context Protocol) integration.
+Memory-Agent is a modular AI Agent framework implementing the ReAct (Reasoning + Acting) pattern. It uses the Anthropic SDK for LLM calls and supports MCP (Model Context Protocol) for tool integration.
 
 ## Commands
 
 ```bash
-# Interactive CLI mode
+# Interactive REPL (default)
 python main.py
 
-# Web server mode
+# Web server mode (FastAPI + WebSocket)
 python main.py --web
-# or: memory-agent --web (after pip install -e .)
 
-# Demo mode
-python main.py --demo
+# MCP server mode (for Claude Code / Claude Desktop)
+python main.py --mcp
 
-# Single task mode
-python main.py --task "your task here"
+# Diagnostics — validates config, LLM, MCP bridge, Obsidian, skills
+python main.py --doctor
 
-# Run specific test (if tests exist)
-pytest tests/test_xxx.py -v
+# Run all tests
+python -m pytest tests/ -v
+
+# Run specific test file
+python -m pytest tests/test_config.py -v
+
+# Verify imports
+python -c "import main; print('OK')"
 ```
 
-**Required Environment Variables:**
-- `ANTHROPIC_AUTH_TOKEN` - API key for LLM calls
-- `ANTHROPIC_BASE_URL` - (optional) API endpoint, defaults to `https://api.minimaxi.com/anthropic`
-- `ANTHROPIC_MODEL` - (optional) model name, defaults to `MiniMax-M2.7`
+**Required environment variables:**
+- `ANTHROPIC_AUTH_TOKEN` — API key for LLM calls
+- `ANTHROPIC_BASE_URL` — (optional) defaults to `https://api.minimaxi.com/anthropic`
+- `ANTHROPIC_MODEL` — (optional) defaults to `MiniMax-M2.7`
+
+**Optional:**
+- `OBSIDIAN_VAULT_PATH` — enables Obsidian note persistence
+- `TRANSLATE_MCP_COMMAND` / `TRANSLATE_MCP_ARGS` / `TRANSLATE_MCP_PATH` — video transcription bridge
 
 ## Architecture
 
+The request flow through the system:
+
 ```
-main.py                    # Entry point (CLI vs web mode)
-├── agent.py               # Core Agent class + ToolRunner
-├── config.py              # Configuration dataclasses
-├── memory.py              # JSON-based conversation memory
-├── skills_manager.py      # Dynamic skill loading from skills/
-├── web.py                 # FastAPI web server
-├── cli/__main__.py        # CLI commands + run_web()
-├── tools/                 # Tool implementations
-│   ├── base.py            # BaseTool abstract class
-│   ├── file_tool.py       # FileReadTool, FileWriteTool
-│   ├── shell_tool.py      # ShellTool (whitelist-based)
-│   ├── web_tool.py        # WebSearchTool (DuckDuckGo)
-│   └── mcp_tool.py        # MCPClientTool (MCP protocol)
-└── skills/                # Dynamic skill definitions (SKILL.md files)
+Entry (main.py)
+  ├── REPL (repl.py) ─── agent_loop.py ─── agent_runner.py ─── llm_client.py
+  ├── Web  (web.py)    ─┘                    │
+  ├── MCP  (mcp_server.py)                   │
+  └── CLI  (cli/__main__.py)                 │
+                                       tools/registry.py
+                                       tools/base.py → tool implementations
+                                       tools/mcp_bridge.py → external MCP servers
+                                       memory_store.py (working → episodic → long-term)
+                                       compactor.py (LLM-driven history compression)
+                                       context_builder.py (Jinja2 templates)
 ```
+
+**Core modules:**
+- `agent_runner.py` — Multi-turn tool-calling loop. Calls LLM, parses tool requests, executes tools in parallel via `asyncio.gather()`, returns results. Individual tool failures produce error result dicts instead of crashing the conversation.
+- `agent_loop.py` — Orchestration layer: session management, compaction triggers, skill loading.
+- `memory_store.py` — Three-layer memory: working (current conversation), episodic (daily `memory/YYYY-MM-DD.md`), long-term (`memory/MEMORY.md`). Uses `filelock` for concurrent safety.
+- `context_builder.py` — Assembles system prompt from Jinja2 templates, skills summary, long-term memory, and tool schemas.
+- `compactor.py` — Summarizes old conversation turns via LLM and writes to episodic/long-term memory. Protected by `threading.Lock`.
+- `errors.py` — Exception hierarchy: `AgentError` base → `ToolExecutionError`, `LLMRateLimitError`, `ConfigurationError`, `APIError`.
+- `llm_client.py` — Anthropic SDK wrapper with retry logic (rate limit backoff, connection retry).
+- `logging_config.py` — Structured JSON logging with request correlation IDs via `contextvars`.
 
 ## Key Design Patterns
 
-**Tool System:** All tools inherit from `BaseTool` and implement `execute()`. Tools are registered in `ToolRunner` and exposed to the LLM via OpenAI/Anthropic tool schemas.
+**Tool System:** All tools inherit `BaseTool` (name, description, parameters, async execute). Registered in `ToolRegistry` singleton via `get_registry()`. Tool schemas are auto-generated for the Anthropic API.
 
-**Agent Loop:** The Agent.run() method implements the ReAct loop:
-1. Build system prompt with skills + memory summary + tool schemas
-2. Call LLM with user task
-3. Parse response for `tool_call` or `final_answer`
-4. Execute tools, collect observations
-5. Loop until final_answer or max_iterations reached
+**Agent Loop (AgentRunner.run()):**
+1. Build system prompt via `ContextBuilder`
+2. Call LLM with conversation history + tools
+3. If `response.stop_reason == "tool_use"`: execute tools in parallel via `asyncio.gather()`, append results to memory, loop
+4. If `response.stop_reason == "end_turn"`: return text response
 
-**Memory:** Conversation history stored in `memory.json` with message roles (user/assistant/system/tool) and arbitrary state key-value store.
+**Error handling:** Tool failures return `{"is_error": true}` result dicts rather than raising exceptions, so one tool failure doesn't discard other tools' results. API errors raise typed exceptions (`APIError`, `LLMRateLimitError`).
 
-**Skills:** Loaded from `skills/` directory on demand. Each skill is a directory containing `SKILL.md` with instructions that get injected into the system prompt.
-
-**MCP Integration:** MCPClientTool connects to MCP servers via `.mcp.json` config, allowing dynamic tool discovery.
-
-## Configuration
-
-All config is in `config.py` using dataclasses:
-- `LLMConfig`: model, api_key, base_url, temperature, max_tokens
-- `AgentConfig`: max_iterations, memory_file, skills_dir, mcp_config_path
-- `ToolConfig`: shell_timeout, shell_whitelist, web_search_timeout
-
-Config is loaded via `Config.from_env()` which reads environment variables.
+**Graceful shutdown:** SIGTERM/SIGINT handlers in repl.py, mcp_server.py, and web.py save state and clean up connections before exit.
