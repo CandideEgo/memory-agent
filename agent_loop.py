@@ -7,6 +7,8 @@ from memory_store import MemoryStore
 from agent_runner import AgentRunner
 from context_builder import ContextBuilder
 from compactor import should_compact, compact
+from skills_manager import SkillManager
+from config import settings
 
 
 class AgentLoop:
@@ -16,6 +18,7 @@ class AgentLoop:
         self.runner = AgentRunner()
         self.context_builder = ContextBuilder()
         self.sessions: dict[str, MemoryStore] = {}
+        self._skill_mgr = SkillManager(settings.skills_dir)
 
     def get_session(self, session_id: Optional[str] = None) -> tuple[str, MemoryStore]:
         if session_id is None:
@@ -59,10 +62,7 @@ class AgentLoop:
             yield chunk
 
     def _get_skills_summary(self) -> str:
-        from skills_manager import SkillManager
-        from config import settings
-        mgr = SkillManager(settings.skills_dir)
-        skills = mgr.skills
+        skills = self._skill_mgr.skills
         if not skills:
             return "No skills available."
         lines = ["Available skills:"]

@@ -12,7 +12,7 @@ import logging
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import BaseTool, TextContent
+from mcp.types import TextContent
 
 from config import settings
 

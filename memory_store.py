@@ -35,7 +35,10 @@ class MemoryStore:
         for m in self.working:
             role = m.get("role", "user")
             content = m.get("content", "")
-            if role == "assistant":
+            # Preserve list content (e.g., tool blocks) as-is
+            if isinstance(content, list):
+                msgs.append({"role": role, "content": content})
+            elif role == "assistant":
                 msgs.append({"role": "assistant", "content": content})
             else:
                 msgs.append({"role": "user", "content": content})

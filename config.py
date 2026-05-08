@@ -16,47 +16,6 @@ _PROJECT_ROOT = Path(__file__).resolve().parent
 _ENV_PATH = _PROJECT_ROOT / ".env"
 
 
-class LLMConfig(BaseSettings):
-    """LLM API configuration."""
-    model_config = SettingsConfigDict(env_prefix="LLM_", extra="ignore")
-    model: str = "MiniMax-M2.7"
-    api_key: str = ""
-    base_url: str = "https://api.minimaxi.com/anthropic"
-    temperature: float = 0.7
-    max_tokens: int = 4096
-    timeout: int = 60
-    use_anthropic_api: bool = True
-
-
-class AgentConfig(BaseSettings):
-    """Agent behavior configuration."""
-    model_config = SettingsConfigDict(env_prefix="AGENT_", extra="ignore")
-    max_iterations: int = 10
-    memory_dir: str = "./memory"
-    skills_dir: str = "skills"
-    templates_dir: str = "templates"
-    retry_count: int = 3
-    retry_delay: float = 1.0
-    mcp_config_path: str = ".mcp.json"
-
-    @property
-    def memory_file(self) -> str:
-        """Backward compat: old name for memory_dir."""
-        return self.memory_dir
-
-    @property
-    def base_dir(self) -> str:
-        """Backward compat: project root for path resolution."""
-        return str(_PROJECT_ROOT)
-
-    def resolve_path(self, path: str) -> str:
-        """Resolve relative path against project root."""
-        p = Path(path)
-        if p.is_absolute():
-            return str(p)
-        return str(_PROJECT_ROOT / p)
-
-
 class ToolConfig(BaseSettings):
     """Tool-specific configuration."""
     model_config = SettingsConfigDict(env_prefix="TOOL_", extra="ignore")
